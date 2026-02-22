@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { parseLog, ErrorType } from "@/lib/logParser";
+import { parseLog, cleanLLMOutput, ErrorType } from "@/lib/logParser";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +23,7 @@ const ERROR_TYPE_COLORS: Record<ErrorType, string> = {
   TimeoutException: "bg-yellow-500/15 text-yellow-700 border-yellow-500/30 dark:text-yellow-400",
   PermissionDenied: "bg-purple-500/15 text-purple-700 border-purple-500/30 dark:text-purple-400",
   SchemaMismatch: "bg-blue-500/15 text-blue-700 border-blue-500/30 dark:text-blue-400",
+  NetworkError: "bg-rose-500/15 text-rose-700 border-rose-500/30 dark:text-rose-400",
   UnknownError: "bg-muted text-muted-foreground border-border",
 };
 
@@ -100,9 +101,9 @@ export default function Dashboard() {
 
       const analysis: AnalysisResult = {
         detectedErrorType: parsed.detectedErrorType,
-        rootCauseSummary: data.root_cause_summary,
-        suggestedFix: data.suggested_fix,
-        businessImpact: data.business_impact,
+        rootCauseSummary: cleanLLMOutput(data.root_cause_summary),
+        suggestedFix: cleanLLMOutput(data.suggested_fix),
+        businessImpact: cleanLLMOutput(data.business_impact),
       };
 
       setStatusMsg("Saving analysis...");

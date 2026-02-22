@@ -18,6 +18,7 @@ Your task is to analyze the failure and return a JSON object with exactly these 
 - "suggested_fix": Specific, actionable remediation steps including code patterns or configuration changes where applicable (3-6 bullet points or steps)
 - "business_impact": The potential business consequences if this issue is not resolved (1-3 sentences)
 
+Do not wrap any response values in square brackets or special characters. Return clean plain text for each field value.
 Be precise and technical. Output ONLY valid JSON with those three keys and no other text.`;
 
 serve(async (req) => {
