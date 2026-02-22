@@ -50,7 +50,7 @@ export function AppSidebar() {
         </div>
         {!collapsed && (
           <div className="overflow-hidden">
-            <p className="truncate text-sm font-bold text-sidebar-accent-foreground">PipelineRCA</p>
+            <p className="truncate text-sm font-bold text-sidebar-accent-foreground">RootSight</p>
             <p className="truncate text-xs text-sidebar-foreground">AI Analysis</p>
           </div>
         )}
