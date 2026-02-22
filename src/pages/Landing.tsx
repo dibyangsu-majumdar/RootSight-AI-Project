@@ -60,10 +60,6 @@ export default function Landing() {
 
       {/* Hero */}
       <section className="mx-auto max-w-6xl px-6 py-24 text-center">
-        <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-4 py-1.5 text-xs font-medium text-primary mb-6">
-          <Zap className="h-3 w-3" />
-          Powered by Lovable AI Gateway
-        </div>
         <h1 className="text-5xl font-extrabold tracking-tight text-foreground sm:text-6xl">
           Diagnose Pipeline Failures
           <br />
