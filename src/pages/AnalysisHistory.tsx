@@ -164,8 +164,9 @@ export default function AnalysisHistory() {
                     </Badge>
                   )}
                   <div className="grid gap-3 md:grid-cols-2">
-                    <InfoBlock label="🔍 Root Cause" content={analysis.root_cause_summary} />
+                    <InfoBlock label="🔍 Root Cause Explanation" content={analysis.root_cause_summary} />
                     <InfoBlock label="🔧 Suggested Fix" content={analysis.suggested_fix} />
+                    <InfoBlock label="🛡️ Preventive Recommendation" content={extractPreventiveRec(analysis.suggested_fix)} />
                     <InfoBlock label="📊 Business Impact" content={analysis.business_impact} />
                   </div>
                 </div>
@@ -176,6 +177,15 @@ export default function AnalysisHistory() {
       )}
     </div>
   );
+}
+
+function extractPreventiveRec(suggestedFix: string | null): string {
+  if (!suggestedFix) return "Implement monitoring and alerting for this error pattern to catch similar issues earlier.";
+  const sentences = suggestedFix.split(/\.\s+|\n\n/);
+  if (sentences.length > 1) {
+    return sentences[sentences.length - 1].trim() || sentences[sentences.length - 2].trim();
+  }
+  return "Implement monitoring and alerting for this error pattern to catch similar issues earlier.";
 }
 
 function InfoBlock({ label, content }: { label: string; content: string | null }) {

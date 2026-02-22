@@ -39,7 +39,7 @@ export default function Landing() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
               <Zap className="h-4 w-4 text-primary-foreground" />
             </div>
-            <span className="text-lg font-bold text-foreground">PipelineRCA AI</span>
+            <span className="text-lg font-bold text-foreground">RootSight AI</span>
           </div>
           <div className="flex items-center gap-3">
             <button
@@ -70,7 +70,7 @@ export default function Landing() {
           <span className="text-primary">in Seconds</span>
         </h1>
         <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-          PipelineRCA AI analyzes your data pipeline logs and delivers instant root cause analysis,
+          RootSight AI analyzes your data pipeline logs and delivers instant root cause analysis,
           suggested fixes, and business impact assessment — so you can resolve incidents faster.
         </p>
         <div className="mt-10 flex items-center justify-center gap-4">
@@ -124,7 +124,7 @@ export default function Landing() {
       </section>
 
       <footer className="border-t border-border py-8 text-center text-sm text-muted-foreground">
-        © {new Date().getFullYear()} PipelineRCA AI. Built for data engineers.
+        © {new Date().getFullYear()} RootSight AI. Built for data engineers.
       </footer>
     </div>
   );
