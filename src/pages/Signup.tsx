@@ -34,14 +34,14 @@ export default function Signup() {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: window.location.origin }
     });
     if (error) {
       toast({ title: "Sign up failed", description: error.message, variant: "destructive" });
     } else {
       toast({
         title: "Account created!",
-        description: "Please check your email to verify your account.",
+        description: "Please check your email to verify your account."
       });
       navigate("/login");
     }
@@ -55,7 +55,7 @@ export default function Signup() {
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
             <Zap className="h-5 w-5 text-primary-foreground" />
           </div>
-          <span className="text-xl font-bold text-foreground">PipelineRCA AI</span>
+          <span className="text-xl font-bold text-foreground">RootSight AI</span>
         </div>
         <Card>
           <CardHeader>
@@ -72,8 +72,8 @@ export default function Signup() {
                   placeholder="you@company.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading}
-                />
+                  disabled={loading} />
+
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
@@ -83,8 +83,8 @@ export default function Signup() {
                   placeholder="Min. 6 characters"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  disabled={loading}
-                />
+                  disabled={loading} />
+
               </div>
               <div className="space-y-2">
                 <Label htmlFor="confirm">Confirm Password</Label>
@@ -94,18 +94,18 @@ export default function Signup() {
                   placeholder="••••••••"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  disabled={loading}
-                />
+                  disabled={loading} />
+
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-3">
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? (
-                  <span className="flex items-center gap-2">
+                {loading ?
+                <span className="flex items-center gap-2">
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
                     Creating account...
-                  </span>
-                ) : "Create account"}
+                  </span> :
+                "Create account"}
               </Button>
               <p className="text-center text-sm text-muted-foreground">
                 Already have an account?{" "}
@@ -117,6 +117,6 @@ export default function Signup() {
           </form>
         </Card>
       </div>
-    </div>
-  );
+    </div>);
+
 }
