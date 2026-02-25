@@ -9,6 +9,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { parseLog, cleanLLMOutput, ErrorType } from "@/lib/logParser";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { DashboardStats } from "@/components/dashboard/DashboardStats";
+import { ExportButton } from "@/components/dashboard/ExportButton";
 
 interface AnalysisResult {
   detectedErrorType: ErrorType;
@@ -140,6 +142,9 @@ export default function Dashboard() {
         <p className="text-muted-foreground">Upload or paste your pipeline logs to get instant AI root cause analysis.</p>
       </div>
 
+      {/* Stats overview */}
+      <DashboardStats />
+
       {/* Input section */}
       <div className="grid gap-4 lg:grid-cols-2">
         {/* File upload */}
@@ -232,7 +237,7 @@ export default function Dashboard() {
       {/* Results */}
       {result && (
         <div className="space-y-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-500">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <h2 className="text-xl font-bold text-foreground">Analysis Results</h2>
             <Badge
               className={cn("border text-xs font-semibold", ERROR_TYPE_COLORS[result.detectedErrorType])}
@@ -240,6 +245,7 @@ export default function Dashboard() {
             >
               {result.detectedErrorType}
             </Badge>
+            <ExportButton result={{ ...result, fileName }} />
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
