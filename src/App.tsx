@@ -12,6 +12,10 @@ import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
 import Dashboard from "@/pages/Dashboard";
 import AnalysisHistory from "@/pages/AnalysisHistory";
+import Incidents from "@/pages/Incidents";
+import IncidentDetail from "@/pages/IncidentDetail";
+import Evaluation from "@/pages/Evaluation";
+import About from "@/pages/About";
 import AccountSettings from "@/pages/AccountSettings";
 import NotFound from "@/pages/NotFound";
 
@@ -33,9 +37,12 @@ const App = () => (
 
               {/* Protected app routes */}
               <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-
                 <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/incidents" element={<Incidents />} />
+                <Route path="/incidents/:id" element={<IncidentDetail />} />
                 <Route path="/history" element={<AnalysisHistory />} />
+                <Route path="/evaluation" element={<Evaluation />} />
+                <Route path="/about" element={<About />} />
                 <Route path="/settings" element={<AccountSettings />} />
               </Route>
 

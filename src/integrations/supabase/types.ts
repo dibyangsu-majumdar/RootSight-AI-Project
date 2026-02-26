@@ -14,6 +14,119 @@ export type Database = {
   }
   public: {
     Tables: {
+      evaluation_logs: {
+        Row: {
+          created_at: string
+          details: Json | null
+          error_type: string | null
+          expected_root_cause: string
+          file_name: string | null
+          id: string
+          match_score: number | null
+          predicted_root_cause: string | null
+          raw_log: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          error_type?: string | null
+          expected_root_cause: string
+          file_name?: string | null
+          id?: string
+          match_score?: number | null
+          predicted_root_cause?: string | null
+          raw_log: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          error_type?: string | null
+          expected_root_cause?: string
+          file_name?: string | null
+          id?: string
+          match_score?: number | null
+          predicted_root_cause?: string | null
+          raw_log?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      incidents: {
+        Row: {
+          affected_service: string | null
+          confidence_reasoning: string | null
+          confidence_score: number | null
+          created_at: string
+          environment: string | null
+          error_type: string | null
+          file_name: string | null
+          id: string
+          impact_scope: string | null
+          log_analysis_id: string | null
+          long_term_prevention: string | null
+          raw_log: string | null
+          recommended_fix_steps: string | null
+          resolution_notes: string | null
+          root_cause_summary: string | null
+          service_name: string | null
+          stack_trace_hash: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          affected_service?: string | null
+          confidence_reasoning?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          environment?: string | null
+          error_type?: string | null
+          file_name?: string | null
+          id?: string
+          impact_scope?: string | null
+          log_analysis_id?: string | null
+          long_term_prevention?: string | null
+          raw_log?: string | null
+          recommended_fix_steps?: string | null
+          resolution_notes?: string | null
+          root_cause_summary?: string | null
+          service_name?: string | null
+          stack_trace_hash?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          affected_service?: string | null
+          confidence_reasoning?: string | null
+          confidence_score?: number | null
+          created_at?: string
+          environment?: string | null
+          error_type?: string | null
+          file_name?: string | null
+          id?: string
+          impact_scope?: string | null
+          log_analysis_id?: string | null
+          long_term_prevention?: string | null
+          raw_log?: string | null
+          recommended_fix_steps?: string | null
+          resolution_notes?: string | null
+          root_cause_summary?: string | null
+          service_name?: string | null
+          stack_trace_hash?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incidents_log_analysis_id_fkey"
+            columns: ["log_analysis_id"]
+            isOneToOne: false
+            referencedRelation: "log_analyses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       log_analyses: {
         Row: {
           business_impact: string | null

@@ -8,18 +8,88 @@ const corsHeaders = {
 
 const SYSTEM_PROMPT = `You are a senior data platform reliability engineer with deep expertise in distributed systems, data pipelines, and incident response.
 
-You will be given:
-- A detected error type from a data pipeline log
+You will receive structured, preprocessed log data including:
+- A detected error type
 - An extracted error snippet
-- A summary of the log
+- A log summary
+- Service name, environment, and other metadata when available
 
-Your task is to analyze the failure and return a JSON object with exactly these three fields:
-- "root_cause_summary": A concise, technical explanation of why this failure occurred (2-4 sentences)
-- "suggested_fix": Specific, actionable remediation steps including code patterns or configuration changes where applicable (3-6 bullet points or steps)
-- "business_impact": The potential business consequences if this issue is not resolved (1-3 sentences)
+Your task is to analyze the failure and return ONLY a valid JSON object with exactly these fields:
 
-Do not wrap any response values in square brackets or special characters. Return clean plain text for each field value.
-Be precise and technical. Output ONLY valid JSON with those three keys and no other text.`;
+{
+  "error_type": "The specific error classification",
+  "affected_service": "The service or component that failed",
+  "root_cause_summary": "A concise, technical explanation of why this failure occurred (2-4 sentences)",
+  "confidence_reasoning": "Explain what evidence supports your analysis and what is uncertain",
+  "confidence_score": 0-100,
+  "recommended_fix_steps": ["Step 1", "Step 2", "Step 3"],
+  "long_term_prevention": "Specific preventive measures to avoid recurrence",
+  "impact_scope": "The potential business and operational consequences if unresolved (1-3 sentences)"
+}
+
+CRITICAL RULES:
+- Output ONLY the JSON object. No markdown, no backticks, no explanation outside the JSON.
+- Do NOT guess or hallucinate when data is insufficient. Instead, set confidence_score below 40 and explain in confidence_reasoning.
+- If the log is ambiguous, say so explicitly in confidence_reasoning.
+- Do NOT wrap string values in square brackets.
+- recommended_fix_steps MUST be a JSON array of strings.
+- confidence_score must be an integer 0-100 reflecting how certain you are.
+- Prioritize structured reasoning over speculation.
+- If you cannot determine root cause, say "Insufficient data to determine root cause" and set confidence_score to 10-20.`;
+
+async function callLLM(userPrompt: string, apiKey: string): Promise<string> {
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "google/gemini-3-flash-preview",
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.2,
+    }),
+  });
+
+  if (!response.ok) {
+    const status = response.status;
+    if (status === 429) throw { status: 429, message: "Rate limit exceeded. Please try again shortly." };
+    if (status === 402) throw { status: 402, message: "Usage limit reached. Please add credits." };
+    const errText = await response.text();
+    console.error("AI gateway error:", status, errText);
+    throw new Error(`AI gateway returned ${status}`);
+  }
+
+  const aiData = await response.json();
+  return aiData.choices?.[0]?.message?.content ?? "";
+}
+
+function parseJSON(content: string): Record<string, unknown> | null {
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return null;
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+    // Validate required fields
+    if (typeof parsed.root_cause_summary !== "string") return null;
+    if (!Array.isArray(parsed.recommended_fix_steps)) {
+      // Try to convert string to array
+      if (typeof parsed.recommended_fix_steps === "string") {
+        parsed.recommended_fix_steps = parsed.recommended_fix_steps.split(/\n|;/).filter(Boolean).map((s: string) => s.trim());
+      } else {
+        parsed.recommended_fix_steps = [];
+      }
+    }
+    if (typeof parsed.confidence_score !== "number") {
+      parsed.confidence_score = 50;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -27,14 +97,21 @@ serve(async (req) => {
   }
 
   try {
-    const { rawLog, detectedErrorType, errorSnippet, logSummary } = await req.json();
+    const { detectedErrorType, errorSnippet, logSummary, serviceName, environment, requestId } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const userPrompt = `Detected Error Type: ${detectedErrorType}
+    const metadataLines = [
+      `Detected Error Type: ${detectedErrorType}`,
+      serviceName ? `Service Name: ${serviceName}` : null,
+      environment ? `Environment: ${environment}` : null,
+      requestId ? `Request ID: ${requestId}` : null,
+    ].filter(Boolean).join("\n");
+
+    const userPrompt = `${metadataLines}
 
 Error Snippet:
 \`\`\`
@@ -43,58 +120,33 @@ ${errorSnippet}
 
 Log Summary: ${logSummary}
 
-Please analyze this failure and respond with the JSON object as specified.`;
+Analyze this failure and respond with the structured JSON object as specified.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.3,
-      }),
-    });
+    // First attempt
+    let content = await callLLM(userPrompt, LOVABLE_API_KEY);
+    let parsed = parseJSON(content);
 
-    if (!response.ok) {
-      const status = response.status;
-      if (status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again shortly.", status: 429 }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Usage limit reached. Please add credits.", status: 402 }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const errText = await response.text();
-      console.error("AI gateway error:", status, errText);
-      throw new Error(`AI gateway returned ${status}`);
+    // Auto-retry once if invalid JSON
+    if (!parsed) {
+      console.log("First LLM response was invalid JSON, retrying...");
+      content = await callLLM(userPrompt + "\n\nIMPORTANT: Your previous response was not valid JSON. Return ONLY a valid JSON object.", LOVABLE_API_KEY);
+      parsed = parseJSON(content);
     }
 
-    const aiData = await response.json();
-    const content = aiData.choices?.[0]?.message?.content ?? "";
-
-    // Clean and parse JSON from the response
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      throw new Error("AI did not return valid JSON");
+    if (!parsed) {
+      throw new Error("AI did not return valid JSON after retry");
     }
-
-    const parsed = JSON.parse(jsonMatch[0]);
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.status === 429 || err?.status === 402) {
+      return new Response(
+        JSON.stringify({ error: err.message, status: err.status }),
+        { status: err.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     console.error("analyze error:", err);
     return new Response(
       JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
