@@ -10,6 +10,9 @@ import {
   LogOut,
   Sun,
   Moon,
+  Shield,
+  FlaskConical,
+  Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,8 +22,11 @@ import { useToast } from "@/hooks/use-toast";
 
 const NAV_ITEMS = [
   { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
+  { label: "Incidents", to: "/incidents", icon: Shield },
   { label: "Analysis History", to: "/history", icon: History },
-  { label: "Account Settings", to: "/settings", icon: Settings },
+  { label: "Evaluation", to: "/evaluation", icon: FlaskConical },
+  { label: "About", to: "/about", icon: Info },
+  { label: "Settings", to: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
@@ -87,7 +93,6 @@ export function AppSidebar() {
 
       {/* Bottom actions */}
       <div className="border-t border-sidebar-border p-2 space-y-1">
-        {/* Theme toggle */}
         <button
           onClick={toggleTheme}
           className={cn(
@@ -99,7 +104,6 @@ export function AppSidebar() {
           {!collapsed && <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>}
         </button>
 
-        {/* User + sign out */}
         {!collapsed && (
           <div className="rounded-md bg-sidebar-accent/40 px-3 py-2">
             <p className="truncate text-xs text-sidebar-foreground">{user?.email}</p>
