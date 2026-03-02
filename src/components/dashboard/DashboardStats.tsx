@@ -146,8 +146,8 @@ export function DashboardStats() {
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
               <AlertTriangle className="h-5 w-5 text-destructive" />
             </div>
-            <div>
-              <p className="text-2xl font-bold text-foreground">{topError?.[0] || "—"}</p>
+            <div className="min-w-0">
+              <p className="text-lg font-bold text-foreground truncate" title={topError?.[0] || "—"}>{topError?.[0] || "—"}</p>
               <p className="text-xs text-muted-foreground">Most Common ({topError?.[1] || 0}×)</p>
             </div>
           </CardContent>
