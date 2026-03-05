@@ -53,9 +53,48 @@ export type Database = {
         }
         Relationships: []
       }
+      incident_feedback: {
+        Row: {
+          comment: string | null
+          created_at: string
+          feedback_type: string
+          id: string
+          incident_id: string
+          section_name: string
+          user_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          feedback_type: string
+          id?: string
+          incident_id: string
+          section_name: string
+          user_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          feedback_type?: string
+          id?: string
+          incident_id?: string
+          section_name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incident_feedback_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "incidents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       incidents: {
         Row: {
           affected_service: string | null
+          ai_summary: string | null
           confidence_reasoning: string | null
           confidence_score: number | null
           created_at: string
@@ -77,6 +116,7 @@ export type Database = {
         }
         Insert: {
           affected_service?: string | null
+          ai_summary?: string | null
           confidence_reasoning?: string | null
           confidence_score?: number | null
           created_at?: string
@@ -98,6 +138,7 @@ export type Database = {
         }
         Update: {
           affected_service?: string | null
+          ai_summary?: string | null
           confidence_reasoning?: string | null
           confidence_score?: number | null
           created_at?: string

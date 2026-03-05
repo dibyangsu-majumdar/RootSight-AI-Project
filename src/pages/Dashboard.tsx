@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { Upload, FileText, X, Loader2, AlertCircle, CheckCircle2, Info } from "lucide-react";
+import { Upload, FileText, X, Loader2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -8,25 +8,26 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { parseLog, cleanLLMOutput, hashStackTrace, ErrorType } from "@/lib/logParser";
 import { findSimilarIncidents, SimilarIncident } from "@/lib/similarityEngine";
-import { computeConfidence, getConfidenceColor } from "@/lib/confidenceEngine";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { SimilarIncidentsPanel } from "@/components/dashboard/SimilarIncidentsPanel";
-import { ConfidenceBadge } from "@/components/dashboard/ConfidenceBadge";
+import { SectionFeedback } from "@/components/dashboard/SectionFeedback";
+import { RecurringBanner } from "@/components/dashboard/RecurringBanner";
+import { AISummaryCard } from "@/components/dashboard/AISummaryCard";
 
 interface AnalysisResult {
+  incidentId: string | null;
   detectedErrorType: ErrorType;
   affectedService: string;
+  aiSummary: string;
   rootCauseSummary: string;
-  confidenceReasoning: string;
-  confidenceScore: number;
-  confidenceLevel: "high" | "medium" | "low";
   recommendedFixSteps: string[];
   longTermPrevention: string;
   impactScope: string;
   similarIncidents: SimilarIncident[];
+  recurringCount: number;
 }
 
 const ERROR_TYPE_COLORS: Record<ErrorType, string> = {
@@ -84,12 +85,10 @@ export default function Dashboard() {
     setResult(null);
 
     try {
-      // Step 1: Structured parsing & preprocessing
       setStatusMsg("Preprocessing & extracting structure...");
       const parsed = parseLog(logText);
       const stackHash = hashStackTrace(parsed.stackTrace);
 
-      // Step 2: Similarity matching
       setStatusMsg("Checking incident memory...");
       const similarIncidents = await findSimilarIncidents({
         userId: user!.id,
@@ -98,7 +97,16 @@ export default function Dashboard() {
         serviceName: parsed.serviceName,
       });
 
-      // Step 3: LLM analysis with cleaned data
+      // Check recurring incidents in last 7 days
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const { count: recurringCount } = await supabase
+        .from("incidents")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user!.id)
+        .eq("error_type", parsed.detectedErrorType)
+        .gte("created_at", sevenDaysAgo.toISOString());
+
       setStatusMsg("AI reasoning engine analyzing...");
       const { data, error } = await supabase.functions.invoke("analyze", {
         body: {
@@ -120,32 +128,9 @@ export default function Dashboard() {
         throw new Error(data.error);
       }
 
-      // Step 4: Confidence scoring
-      setStatusMsg("Computing confidence score...");
-      const confidence = computeConfidence({
-        llmConfidenceScore: data.confidence_score ?? 50,
-        similarIncidents,
-        parsedLog: parsed,
-      });
-
-      const analysis: AnalysisResult = {
-        detectedErrorType: parsed.detectedErrorType,
-        affectedService: data.affected_service || parsed.serviceName || "Unknown",
-        rootCauseSummary: cleanLLMOutput(data.root_cause_summary),
-        confidenceReasoning: data.confidence_reasoning || confidence.reasoning,
-        confidenceScore: confidence.score,
-        confidenceLevel: confidence.level,
-        recommendedFixSteps: Array.isArray(data.recommended_fix_steps)
-          ? data.recommended_fix_steps.map((s: string) => cleanLLMOutput(s))
-          : [],
-        longTermPrevention: cleanLLMOutput(data.long_term_prevention || ""),
-        impactScope: cleanLLMOutput(data.impact_scope || ""),
-        similarIncidents,
-      };
-
-      // Step 5: Save to log_analyses
+      // Save to log_analyses
       setStatusMsg("Saving analysis...");
-      const { data: savedAnalysis, error: dbError } = await supabase.from("log_analyses").insert({
+      const { data: savedAnalysis } = await supabase.from("log_analyses").insert({
         user_id: user!.id,
         file_name: fileName,
         raw_log: logText.substring(0, 50000),
@@ -155,32 +140,42 @@ export default function Dashboard() {
         business_impact: data.impact_scope,
       }).select("id").single();
 
-      if (dbError) console.error("Failed to save analysis:", dbError);
-
-      // Step 6: Save as incident
-      const { error: incidentError } = await supabase.from("incidents").insert({
+      // Save as incident with AI summary
+      const { data: savedIncident } = await supabase.from("incidents").insert({
         user_id: user!.id,
         environment: parsed.environment,
         error_type: parsed.detectedErrorType,
         service_name: parsed.serviceName,
         stack_trace_hash: stackHash,
         root_cause_summary: data.root_cause_summary,
-        confidence_score: confidence.score,
-        confidence_reasoning: confidence.reasoning,
         recommended_fix_steps: JSON.stringify(data.recommended_fix_steps),
         long_term_prevention: data.long_term_prevention,
         impact_scope: data.impact_scope,
         affected_service: data.affected_service,
+        ai_summary: data.ai_summary || "",
         status: "Open",
         raw_log: logText.substring(0, 50000),
         file_name: fileName,
         log_analysis_id: savedAnalysis?.id || null,
-      } as any);
+      } as any).select("id").single();
 
-      if (incidentError) console.error("Failed to save incident:", incidentError);
+      const analysis: AnalysisResult = {
+        incidentId: savedIncident?.id || null,
+        detectedErrorType: parsed.detectedErrorType,
+        affectedService: data.affected_service || parsed.serviceName || "Unknown",
+        aiSummary: cleanLLMOutput(data.ai_summary || ""),
+        rootCauseSummary: cleanLLMOutput(data.root_cause_summary),
+        recommendedFixSteps: Array.isArray(data.recommended_fix_steps)
+          ? data.recommended_fix_steps.map((s: string) => cleanLLMOutput(s))
+          : [],
+        longTermPrevention: cleanLLMOutput(data.long_term_prevention || ""),
+        impactScope: cleanLLMOutput(data.impact_scope || ""),
+        similarIncidents,
+        recurringCount: recurringCount || 0,
+      };
 
       setResult(analysis);
-      toast({ title: "Analysis complete!", description: `Confidence: ${confidence.score}% (${confidence.level})` });
+      toast({ title: "Analysis complete!" });
     } catch (err: any) {
       toast({ title: "Analysis failed", description: err.message || "An unexpected error occurred.", variant: "destructive" });
     } finally {
@@ -278,7 +273,6 @@ export default function Dashboard() {
             <Badge className={cn("border text-xs font-semibold", ERROR_TYPE_COLORS[result.detectedErrorType])} variant="outline">
               {result.detectedErrorType}
             </Badge>
-            <ConfidenceBadge score={result.confidenceScore} level={result.confidenceLevel} reasoning={result.confidenceReasoning} />
             <ExportButton result={{
               detectedErrorType: result.detectedErrorType,
               rootCauseSummary: result.rootCauseSummary,
@@ -288,18 +282,22 @@ export default function Dashboard() {
             }} />
           </div>
 
+          {/* Recurring incident warning */}
+          <RecurringBanner count={result.recurringCount} errorType={result.detectedErrorType} />
+
+          {/* AI Summary */}
+          <AISummaryCard summary={result.aiSummary} />
+
           {/* Similar incidents */}
           {result.similarIncidents.length > 0 && (
             <SimilarIncidentsPanel incidents={result.similarIncidents} />
           )}
 
           <div className="grid gap-4 md:grid-cols-2">
-            <ResultCard icon="🔍" title="Root Cause Explanation" content={result.rootCauseSummary} accent="border-l-4 border-l-destructive" />
-            <ResultCard icon="🏢" title="Affected Service" content={`${result.affectedService}${result.detectedErrorType !== "UnknownError" ? ` — ${result.detectedErrorType}` : ""}`} accent="border-l-4 border-l-primary" />
-            <ResultCard icon="🔧" title="Recommended Fix Steps" content={result.recommendedFixSteps.map((s, i) => `${i + 1}. ${s}`).join("\n")} accent="border-l-4 border-l-primary" />
-            <ResultCard icon="🛡️" title="Long-Term Prevention" content={result.longTermPrevention} accent="border-l-4 border-l-green-500" />
-            <ResultCard icon="📊" title="Impact Scope" content={result.impactScope} accent="border-l-4 border-l-orange-500" />
-            <ResultCard icon="🧠" title="Confidence Reasoning" content={result.confidenceReasoning} accent="border-l-4 border-l-yellow-500" />
+            <ResultCardWithFeedback icon="🔍" title="Root Cause Explanation" content={result.rootCauseSummary} accent="border-l-4 border-l-destructive" incidentId={result.incidentId} sectionName="root_cause" />
+            <ResultCardWithFeedback icon="🔧" title="Suggested Fix" content={result.recommendedFixSteps.map((s, i) => `${i + 1}. ${s}`).join("\n")} accent="border-l-4 border-l-primary" incidentId={result.incidentId} sectionName="suggested_fix" />
+            <ResultCardWithFeedback icon="🛡️" title="Preventive Recommendation" content={result.longTermPrevention} accent="border-l-4 border-l-green-500" incidentId={result.incidentId} sectionName="prevention" />
+            <ResultCardWithFeedback icon="📊" title="Business Impact" content={result.impactScope} accent="border-l-4 border-l-orange-500" incidentId={result.incidentId} sectionName="business_impact" />
           </div>
         </div>
       )}
@@ -307,8 +305,8 @@ export default function Dashboard() {
   );
 }
 
-function ResultCard({ icon, title, content, accent }: {
-  icon: string; title: string; content: string; accent?: string;
+function ResultCardWithFeedback({ icon, title, content, accent, incidentId, sectionName }: {
+  icon: string; title: string; content: string; accent?: string; incidentId: string | null; sectionName: string;
 }) {
   if (!content) return null;
   return (
@@ -320,6 +318,7 @@ function ResultCard({ icon, title, content, accent }: {
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{content}</p>
+        {incidentId && <SectionFeedback incidentId={incidentId} sectionName={sectionName} />}
       </CardContent>
     </Card>
   );

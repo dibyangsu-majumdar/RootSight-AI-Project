@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Shield, Filter, Search } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Shield, Search } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,18 +11,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-import { getConfidenceColor } from "@/lib/confidenceEngine";
 
 interface Incident {
   id: string;
   created_at: string;
-  environment: string | null;
-  service_name: string | null;
   error_type: string | null;
-  confidence_score: number;
   status: string;
   root_cause_summary: string | null;
+  ai_summary: string | null;
+  service_name: string | null;
   affected_service: string | null;
+  environment: string | null;
 }
 
 function formatDate(dateStr: string) {
@@ -31,12 +30,9 @@ function formatDate(dateStr: string) {
   }).format(new Date(dateStr));
 }
 
-function getLevel(score: number): "high" | "medium" | "low" {
-  return score >= 75 ? "high" : score >= 45 ? "medium" : "low";
-}
-
 export default function Incidents() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [feedbackMap, setFeedbackMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [errorTypeFilter, setErrorTypeFilter] = useState<string>("all");
@@ -48,14 +44,33 @@ export default function Incidents() {
 
   const fetchIncidents = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("incidents")
-      .select("id, created_at, environment, service_name, error_type, confidence_score, status, root_cause_summary, affected_service")
+      .select("id, created_at, error_type, status, root_cause_summary, ai_summary, service_name, affected_service, environment")
       .eq("user_id", user!.id)
       .order("created_at", { ascending: false })
       .limit(200);
 
-    if (!error && data) setIncidents(data);
+    if (data) {
+      setIncidents(data as any);
+      // Fetch feedback status for these incidents
+      const ids = data.map((d: any) => d.id);
+      if (ids.length > 0) {
+        const { data: fbData } = await supabase
+          .from("incident_feedback" as any)
+          .select("incident_id, feedback_type")
+          .in("incident_id", ids);
+        if (fbData) {
+          const map: Record<string, string> = {};
+          (fbData as any[]).forEach((fb: any) => {
+            if (!map[fb.incident_id]) {
+              map[fb.incident_id] = fb.feedback_type === "positive" ? "Positive feedback received" : "Negative feedback received";
+            }
+          });
+          setFeedbackMap(map);
+        }
+      }
+    }
     setLoading(false);
   };
 
@@ -64,7 +79,7 @@ export default function Incidents() {
     if (errorTypeFilter !== "all" && inc.error_type !== errorTypeFilter) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      const searchable = `${inc.service_name || ""} ${inc.root_cause_summary || ""} ${inc.error_type || ""} ${inc.environment || ""}`.toLowerCase();
+      const searchable = `${inc.service_name || ""} ${inc.root_cause_summary || ""} ${inc.error_type || ""} ${inc.ai_summary || ""}`.toLowerCase();
       if (!searchable.includes(q)) return false;
     }
     return true;
@@ -78,10 +93,9 @@ export default function Incidents() {
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
           <Shield className="h-6 w-6 text-primary" /> Incident Dashboard
         </h1>
-        <p className="text-muted-foreground">All tracked incidents with RCA details, confidence scores, and resolution status.</p>
+        <p className="text-muted-foreground">All tracked incidents with AI summaries, feedback, and resolution status.</p>
       </div>
 
-      {/* Filters */}
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -109,7 +123,6 @@ export default function Incidents() {
         </CardContent>
       </Card>
 
-      {/* Table */}
       {loading ? (
         <div className="space-y-2">{[1,2,3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div>
       ) : filtered.length === 0 ? (
@@ -126,46 +139,47 @@ export default function Incidents() {
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
-                <TableHead>Environment</TableHead>
-                <TableHead>Service</TableHead>
                 <TableHead>Error Type</TableHead>
-                <TableHead>Confidence</TableHead>
+                <TableHead>AI Summary</TableHead>
+                <TableHead>Feedback</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((inc) => {
-                const level = getLevel(inc.confidence_score);
-                return (
-                  <TableRow key={inc.id} className="cursor-pointer" onClick={() => navigate(`/incidents/${inc.id}`)}>
-                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(inc.created_at)}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-xs">{inc.environment || "—"}</Badge>
-                    </TableCell>
-                    <TableCell className="text-sm font-medium">{inc.service_name || inc.affected_service || "—"}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="text-xs">{inc.error_type || "Unknown"}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={cn("text-xs font-semibold", getConfidenceColor(level))}>
-                        {inc.confidence_score}%
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={cn("text-xs",
-                        inc.status === "Resolved" ? "bg-green-500/15 text-green-700 border-green-500/30 dark:text-green-400" :
-                        "bg-orange-500/15 text-orange-600 border-orange-500/30 dark:text-orange-400"
+              {filtered.map((inc) => (
+                <TableRow key={inc.id} className="cursor-pointer" onClick={() => navigate(`/incidents/${inc.id}`)}>
+                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(inc.created_at)}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-xs">{inc.error_type || "Unknown"}</Badge>
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground max-w-[300px] truncate">
+                    {inc.ai_summary || inc.root_cause_summary?.substring(0, 80) || "—"}
+                  </TableCell>
+                  <TableCell>
+                    {feedbackMap[inc.id] ? (
+                      <span className={cn("text-xs font-medium",
+                        feedbackMap[inc.id].includes("Positive") ? "text-green-600 dark:text-green-400" : "text-orange-600 dark:text-orange-400"
                       )}>
-                        {inc.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="sm" className="text-xs">View →</Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
+                        {feedbackMap[inc.id]}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={cn("text-xs",
+                      inc.status === "Resolved" ? "bg-green-500/15 text-green-700 border-green-500/30 dark:text-green-400" :
+                      "bg-orange-500/15 text-orange-600 border-orange-500/30 dark:text-orange-400"
+                    )}>
+                      {inc.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="ghost" size="sm" className="text-xs">View →</Button>
+                  </TableCell>
+                </TableRow>
+              ))}
             </TableBody>
           </Table>
         </Card>
