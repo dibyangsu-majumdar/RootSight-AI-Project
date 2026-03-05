@@ -65,7 +65,7 @@ export function computeConfidence(input: ConfidenceInput): ConfidenceResult {
   return {
     score: finalScore,
     reasoning: reasons.join(". ") + ".",
-    level: finalScore >= 75 ? "high" : finalScore >= 45 ? "medium" : "low",
+    level: finalScore >= 75 ? "high" : finalScore >= 50 ? "medium" : "low",
   };
 }
 

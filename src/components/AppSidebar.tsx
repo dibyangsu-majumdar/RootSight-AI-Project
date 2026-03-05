@@ -11,7 +11,6 @@ import {
   Sun,
   Moon,
   Shield,
-  FlaskConical,
   Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,7 +23,6 @@ const NAV_ITEMS = [
   { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
   { label: "Incidents", to: "/incidents", icon: Shield },
   { label: "Analysis History", to: "/history", icon: History },
-  { label: "Evaluation", to: "/evaluation", icon: FlaskConical },
   { label: "About", to: "/about", icon: Info },
   { label: "Settings", to: "/settings", icon: Settings },
 ];
