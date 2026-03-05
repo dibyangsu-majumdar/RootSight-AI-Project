@@ -14,7 +14,6 @@ import Dashboard from "@/pages/Dashboard";
 import AnalysisHistory from "@/pages/AnalysisHistory";
 import Incidents from "@/pages/Incidents";
 import IncidentDetail from "@/pages/IncidentDetail";
-import Evaluation from "@/pages/Evaluation";
 import About from "@/pages/About";
 import AccountSettings from "@/pages/AccountSettings";
 import NotFound from "@/pages/NotFound";
@@ -41,7 +40,6 @@ const App = () => (
                 <Route path="/incidents" element={<Incidents />} />
                 <Route path="/incidents/:id" element={<IncidentDetail />} />
                 <Route path="/history" element={<AnalysisHistory />} />
-                <Route path="/evaluation" element={<Evaluation />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/settings" element={<AccountSettings />} />
               </Route>
