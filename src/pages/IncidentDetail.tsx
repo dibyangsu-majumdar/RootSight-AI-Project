@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Shield, Clock, Save } from "lucide-react";
+import { ArrowLeft, Clock, Save } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,8 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { getConfidenceColor } from "@/lib/confidenceEngine";
-import { ConfidenceBadge } from "@/components/dashboard/ConfidenceBadge";
+import { SectionFeedback } from "@/components/dashboard/SectionFeedback";
+import { AISummaryCard } from "@/components/dashboard/AISummaryCard";
 
 interface IncidentFull {
   id: string;
@@ -21,14 +21,12 @@ interface IncidentFull {
   error_type: string | null;
   service_name: string | null;
   affected_service: string | null;
-  stack_trace_hash: string | null;
   root_cause_summary: string | null;
-  confidence_score: number;
-  confidence_reasoning: string | null;
   recommended_fix_steps: string | null;
   long_term_prevention: string | null;
   impact_scope: string | null;
   resolution_notes: string | null;
+  ai_summary: string | null;
   status: string;
   file_name: string | null;
 }
@@ -56,7 +54,7 @@ export default function IncidentDetail() {
 
   const fetchIncident = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("incidents")
       .select("*")
       .eq("id", id!)
@@ -101,7 +99,6 @@ export default function IncidentDetail() {
     </div>
   );
 
-  const level = incident.confidence_score >= 75 ? "high" : incident.confidence_score >= 45 ? "medium" : "low";
   let fixSteps: string[] = [];
   try { fixSteps = JSON.parse(incident.recommended_fix_steps || "[]"); } catch { fixSteps = [incident.recommended_fix_steps || ""]; }
 
@@ -116,7 +113,6 @@ export default function IncidentDetail() {
       <div className="flex items-center gap-3 flex-wrap">
         <h1 className="text-xl font-bold text-foreground">Incident Detail</h1>
         <Badge variant="outline" className="text-xs">{incident.error_type || "Unknown"}</Badge>
-        <ConfidenceBadge score={incident.confidence_score} level={level} reasoning={incident.confidence_reasoning || ""} />
         <Badge variant="outline" className={cn("text-xs",
           incident.status === "Resolved" ? "bg-green-500/15 text-green-700 border-green-500/30 dark:text-green-400" :
           "bg-orange-500/15 text-orange-600 border-orange-500/30 dark:text-orange-400"
@@ -132,12 +128,14 @@ export default function IncidentDetail() {
         {incident.file_name && <span>File: {incident.file_name}</span>}
       </div>
 
+      {/* AI Summary */}
+      <AISummaryCard summary={incident.ai_summary || ""} />
+
       <div className="grid gap-4 md:grid-cols-2">
-        <DetailCard icon="🔍" title="Root Cause" content={incident.root_cause_summary || "—"} accent="border-l-4 border-l-destructive" />
-        <DetailCard icon="🔧" title="Recommended Fix Steps" content={fixSteps.map((s, i) => `${i + 1}. ${s}`).join("\n")} accent="border-l-4 border-l-primary" />
-        <DetailCard icon="🛡️" title="Long-Term Prevention" content={incident.long_term_prevention || "—"} accent="border-l-4 border-l-green-500" />
-        <DetailCard icon="📊" title="Impact Scope" content={incident.impact_scope || "—"} accent="border-l-4 border-l-orange-500" />
-        <DetailCard icon="🧠" title="Confidence Reasoning" content={incident.confidence_reasoning || "—"} accent="border-l-4 border-l-yellow-500" />
+        <DetailCardWithFeedback icon="🔍" title="Root Cause Explanation" content={incident.root_cause_summary || "—"} accent="border-l-4 border-l-destructive" incidentId={incident.id} sectionName="root_cause" />
+        <DetailCardWithFeedback icon="🔧" title="Suggested Fix" content={fixSteps.map((s, i) => `${i + 1}. ${s}`).join("\n")} accent="border-l-4 border-l-primary" incidentId={incident.id} sectionName="suggested_fix" />
+        <DetailCardWithFeedback icon="🛡️" title="Preventive Recommendation" content={incident.long_term_prevention || "—"} accent="border-l-4 border-l-green-500" incidentId={incident.id} sectionName="prevention" />
+        <DetailCardWithFeedback icon="📊" title="Business Impact" content={incident.impact_scope || "—"} accent="border-l-4 border-l-orange-500" incidentId={incident.id} sectionName="business_impact" />
       </div>
 
       {/* Resolution section */}
@@ -146,15 +144,13 @@ export default function IncidentDetail() {
           <CardTitle className="text-sm font-semibold">Resolution & Status</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex items-center gap-3">
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="w-[160px] h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Open">Open</SelectItem>
-                <SelectItem value="Resolved">Resolved</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <Select value={status} onValueChange={setStatus}>
+            <SelectTrigger className="w-[160px] h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Open">Open</SelectItem>
+              <SelectItem value="Resolved">Resolved</SelectItem>
+            </SelectContent>
+          </Select>
           <Textarea
             placeholder="Add resolution notes..."
             value={resolutionNotes}
@@ -170,7 +166,9 @@ export default function IncidentDetail() {
   );
 }
 
-function DetailCard({ icon, title, content, accent }: { icon: string; title: string; content: string; accent?: string }) {
+function DetailCardWithFeedback({ icon, title, content, accent, incidentId, sectionName }: {
+  icon: string; title: string; content: string; accent?: string; incidentId: string; sectionName: string;
+}) {
   return (
     <Card className={cn("shadow-sm", accent)}>
       <CardHeader className="pb-2">
@@ -180,6 +178,7 @@ function DetailCard({ icon, title, content, accent }: { icon: string; title: str
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{content}</p>
+        <SectionFeedback incidentId={incidentId} sectionName={sectionName} />
       </CardContent>
     </Card>
   );

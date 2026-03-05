@@ -19,9 +19,8 @@ Your task is to analyze the failure and return ONLY a valid JSON object with exa
 {
   "error_type": "The specific error classification",
   "affected_service": "The service or component that failed",
+  "ai_summary": "A concise 2-3 sentence summary explaining the failure so engineers can quickly understand the issue without reading the entire log",
   "root_cause_summary": "A concise, technical explanation of why this failure occurred (2-4 sentences)",
-  "confidence_reasoning": "Explain what evidence supports your analysis and what is uncertain",
-  "confidence_score": 0-100,
   "recommended_fix_steps": ["Step 1", "Step 2", "Step 3"],
   "long_term_prevention": "Specific preventive measures to avoid recurrence",
   "impact_scope": "The potential business and operational consequences if unresolved (1-3 sentences)"
@@ -29,13 +28,12 @@ Your task is to analyze the failure and return ONLY a valid JSON object with exa
 
 CRITICAL RULES:
 - Output ONLY the JSON object. No markdown, no backticks, no explanation outside the JSON.
-- Do NOT guess or hallucinate when data is insufficient. Instead, set confidence_score below 40 and explain in confidence_reasoning.
-- If the log is ambiguous, say so explicitly in confidence_reasoning.
+- The ai_summary should be a plain-language explanation that helps engineers quickly understand what happened.
+- Do NOT guess or hallucinate when data is insufficient. Say so explicitly.
 - Do NOT wrap string values in square brackets.
 - recommended_fix_steps MUST be a JSON array of strings.
-- confidence_score must be an integer 0-100 reflecting how certain you are.
 - Prioritize structured reasoning over speculation.
-- If you cannot determine root cause, say "Insufficient data to determine root cause" and set confidence_score to 10-20.`;
+- If you cannot determine root cause, say "Insufficient data to determine root cause".`;
 
 async function callLLM(userPrompt: string, apiKey: string): Promise<string> {
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -72,18 +70,13 @@ function parseJSON(content: string): Record<string, unknown> | null {
   if (!jsonMatch) return null;
   try {
     const parsed = JSON.parse(jsonMatch[0]);
-    // Validate required fields
     if (typeof parsed.root_cause_summary !== "string") return null;
     if (!Array.isArray(parsed.recommended_fix_steps)) {
-      // Try to convert string to array
       if (typeof parsed.recommended_fix_steps === "string") {
         parsed.recommended_fix_steps = parsed.recommended_fix_steps.split(/\n|;/).filter(Boolean).map((s: string) => s.trim());
       } else {
         parsed.recommended_fix_steps = [];
       }
-    }
-    if (typeof parsed.confidence_score !== "number") {
-      parsed.confidence_score = 50;
     }
     return parsed;
   } catch {
@@ -122,11 +115,9 @@ Log Summary: ${logSummary}
 
 Analyze this failure and respond with the structured JSON object as specified.`;
 
-    // First attempt
     let content = await callLLM(userPrompt, LOVABLE_API_KEY);
     let parsed = parseJSON(content);
 
-    // Auto-retry once if invalid JSON
     if (!parsed) {
       console.log("First LLM response was invalid JSON, retrying...");
       content = await callLLM(userPrompt + "\n\nIMPORTANT: Your previous response was not valid JSON. Return ONLY a valid JSON object.", LOVABLE_API_KEY);

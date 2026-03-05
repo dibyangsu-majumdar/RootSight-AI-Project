@@ -71,7 +71,7 @@ export default function About() {
         <CardContent className="p-6 text-center">
           <p className="text-sm font-semibold text-foreground mb-2">Architecture</p>
           <p className="text-xs text-muted-foreground font-mono">
-            LogParser → IncidentStore → SimilarityEngine → LLMReasoner → ConfidenceEngine → UI
+            LogParser → IncidentStore → SimilarityEngine → LLMReasoner → FeedbackLoop → UI
           </p>
           <p className="text-xs text-muted-foreground mt-2">
             Each module is independent and testable. No monolithic functions.
