@@ -165,7 +165,7 @@ export default function AnalysisHistory() {
                   )}
                   <div className="grid gap-3 md:grid-cols-2">
                     <InfoBlock label="🔍 Root Cause Explanation" content={analysis.root_cause_summary} />
-                    <InfoBlock label="🔧 Suggested Fix" content={analysis.suggested_fix} />
+                    <InfoBlock label="🔧 Suggested Fix" content={formatSuggestedFix(analysis.suggested_fix)} />
                     <InfoBlock label="🛡️ Preventive Recommendation" content={extractPreventiveRec(analysis.suggested_fix)} />
                     <InfoBlock label="📊 Business Impact" content={analysis.business_impact} />
                   </div>
