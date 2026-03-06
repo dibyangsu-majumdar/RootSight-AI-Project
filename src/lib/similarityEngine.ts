@@ -25,7 +25,7 @@ export async function findSimilarIncidents(params: MatchParams): Promise<Similar
   // Query incidents with matching hash or error_type
   const { data, error } = await supabase
     .from("incidents")
-    .select("id, created_at, error_type, service_name, root_cause_summary, resolution_notes, confidence_score, status, stack_trace_hash")
+    .select("id, created_at, error_type, service_name, root_cause_summary, ai_summary, resolution_notes, status, stack_trace_hash")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(50);
