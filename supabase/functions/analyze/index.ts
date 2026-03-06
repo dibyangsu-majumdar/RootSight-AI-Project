@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SYSTEM_PROMPT = `You are a senior data platform reliability engineer with deep expertise in distributed systems, data pipelines, and incident response.
+const BASE_SYSTEM_PROMPT = `You are a senior data platform reliability engineer with deep expertise in distributed systems, data pipelines, and incident response.
 
 You will receive structured, preprocessed log data including:
 - A detected error type
@@ -35,7 +36,55 @@ CRITICAL RULES:
 - Prioritize structured reasoning over speculation.
 - If you cannot determine root cause, say "Insufficient data to determine root cause".`;
 
-async function callLLM(userPrompt: string, apiKey: string): Promise<string> {
+async function fetchFeedbackLessons(userId: string, errorType: string): Promise<string> {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Get negative feedback with corrections for this error type
+    const { data: feedbackData } = await supabase
+      .from("incident_feedback")
+      .select("section_name, comment, incidents!inner(error_type, root_cause_summary, ai_summary)")
+      .eq("user_id", userId)
+      .eq("feedback_type", "negative")
+      .not("comment", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(20);
+
+    if (!feedbackData || feedbackData.length === 0) return "";
+
+    // Filter to relevant feedback (same error type or general corrections)
+    const relevant = feedbackData.filter((fb: any) => {
+      const incident = fb.incidents;
+      return incident?.error_type === errorType || !incident?.error_type;
+    }).slice(0, 10);
+
+    if (relevant.length === 0) return "";
+
+    const lessons = relevant.map((fb: any, i: number) => {
+      const sectionLabel: Record<string, string> = {
+        root_cause: "Root Cause Explanation",
+        suggested_fix: "Suggested Fix",
+        prevention: "Preventive Recommendation",
+        business_impact: "Business Impact",
+      };
+      return `${i + 1}. Section "${sectionLabel[fb.section_name] || fb.section_name}" was marked incorrect. Engineer correction: "${fb.comment}"`;
+    }).join("\n");
+
+    return `\n\nIMPORTANT — ENGINEER FEEDBACK HISTORY:
+The following corrections were provided by engineers for similar past analyses. Use these to improve your response and avoid repeating the same mistakes:
+
+${lessons}
+
+Apply these lessons when generating your analysis. If an engineer corrected a root cause or fix, prefer their explanation over your default reasoning for similar scenarios.`;
+  } catch (e) {
+    console.error("Failed to fetch feedback:", e);
+    return "";
+  }
+}
+
+async function callLLM(systemPrompt: string, userPrompt: string, apiKey: string): Promise<string> {
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -45,7 +94,7 @@ async function callLLM(userPrompt: string, apiKey: string): Promise<string> {
     body: JSON.stringify({
       model: "google/gemini-3-flash-preview",
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
       temperature: 0.2,
@@ -90,12 +139,16 @@ serve(async (req) => {
   }
 
   try {
-    const { detectedErrorType, errorSnippet, logSummary, serviceName, environment, requestId } = await req.json();
+    const { detectedErrorType, errorSnippet, logSummary, serviceName, environment, requestId, userId } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
+
+    // Fetch engineer feedback lessons to improve the prompt
+    const feedbackContext = userId ? await fetchFeedbackLessons(userId, detectedErrorType) : "";
+    const systemPrompt = BASE_SYSTEM_PROMPT + feedbackContext;
 
     const metadataLines = [
       `Detected Error Type: ${detectedErrorType}`,
@@ -115,12 +168,12 @@ Log Summary: ${logSummary}
 
 Analyze this failure and respond with the structured JSON object as specified.`;
 
-    let content = await callLLM(userPrompt, LOVABLE_API_KEY);
+    let content = await callLLM(systemPrompt, userPrompt, LOVABLE_API_KEY);
     let parsed = parseJSON(content);
 
     if (!parsed) {
       console.log("First LLM response was invalid JSON, retrying...");
-      content = await callLLM(userPrompt + "\n\nIMPORTANT: Your previous response was not valid JSON. Return ONLY a valid JSON object.", LOVABLE_API_KEY);
+      content = await callLLM(systemPrompt, userPrompt + "\n\nIMPORTANT: Your previous response was not valid JSON. Return ONLY a valid JSON object.", LOVABLE_API_KEY);
       parsed = parseJSON(content);
     }
 
