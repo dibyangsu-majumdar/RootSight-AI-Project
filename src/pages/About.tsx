@@ -20,7 +20,7 @@ const FEATURES = [
   {
     icon: Shield,
     title: "Hallucination Reduction",
-    description: "The system explicitly instructs the AI to state when data is insufficient rather than guess. Confidence scores reflect parsing completeness, similarity match strength, and LLM certainty signals — enabling trust calibration.",
+    description: "The system explicitly instructs the AI to state when data is insufficient rather than guess. Engineer feedback loops help identify inaccurate analyses and continuously improve future results.",
   },
   {
     icon: TrendingUp,

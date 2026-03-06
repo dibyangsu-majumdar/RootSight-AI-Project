@@ -59,8 +59,8 @@ export async function findSimilarIncidents(params: MatchParams): Promise<Similar
         error_type: incident.error_type,
         service_name: incident.service_name,
         root_cause_summary: incident.root_cause_summary,
+        ai_summary: (incident as any).ai_summary || null,
         resolution_notes: incident.resolution_notes,
-        confidence_score: incident.confidence_score ?? 0,
         status: incident.status,
         similarityScore: Math.min(score, 100),
       });
