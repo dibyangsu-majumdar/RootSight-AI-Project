@@ -116,6 +116,7 @@ export default function Dashboard() {
           serviceName: parsed.serviceName,
           environment: parsed.environment,
           requestId: parsed.requestId,
+          userId: user!.id,
         },
       });
 
