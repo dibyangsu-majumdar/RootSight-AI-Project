@@ -6,8 +6,8 @@ export interface SimilarIncident {
   error_type: string | null;
   service_name: string | null;
   root_cause_summary: string | null;
+  ai_summary: string | null;
   resolution_notes: string | null;
-  confidence_score: number;
   status: string;
   similarityScore: number;
 }
@@ -25,7 +25,7 @@ export async function findSimilarIncidents(params: MatchParams): Promise<Similar
   // Query incidents with matching hash or error_type
   const { data, error } = await supabase
     .from("incidents")
-    .select("id, created_at, error_type, service_name, root_cause_summary, resolution_notes, confidence_score, status, stack_trace_hash")
+    .select("id, created_at, error_type, service_name, root_cause_summary, ai_summary, resolution_notes, status, stack_trace_hash")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(50);
@@ -59,8 +59,8 @@ export async function findSimilarIncidents(params: MatchParams): Promise<Similar
         error_type: incident.error_type,
         service_name: incident.service_name,
         root_cause_summary: incident.root_cause_summary,
+        ai_summary: (incident as any).ai_summary || null,
         resolution_notes: incident.resolution_notes,
-        confidence_score: incident.confidence_score ?? 0,
         status: incident.status,
         similarityScore: Math.min(score, 100),
       });

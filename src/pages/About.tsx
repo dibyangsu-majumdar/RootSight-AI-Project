@@ -15,12 +15,12 @@ const FEATURES = [
   {
     icon: Brain,
     title: "Structured AI Reasoning",
-    description: "The LLM is prompted to return strict JSON with root cause, confidence scores, fix steps, and impact analysis. Output is validated and auto-retried if malformed. No free-text guessing — only structured, actionable intelligence.",
+    description: "The LLM is prompted to return strict JSON with root cause, fix steps, and impact analysis. Output is validated and auto-retried if malformed. No free-text guessing — only structured, actionable intelligence.",
   },
   {
     icon: Shield,
     title: "Hallucination Reduction",
-    description: "The system explicitly instructs the AI to state when data is insufficient rather than guess. Confidence scores reflect parsing completeness, similarity match strength, and LLM certainty signals — enabling trust calibration.",
+    description: "The system explicitly instructs the AI to state when data is insufficient rather than guess. Engineer feedback loops help identify inaccurate analyses and continuously improve future results.",
   },
   {
     icon: TrendingUp,

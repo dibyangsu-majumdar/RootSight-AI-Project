@@ -14,45 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      evaluation_logs: {
-        Row: {
-          created_at: string
-          details: Json | null
-          error_type: string | null
-          expected_root_cause: string
-          file_name: string | null
-          id: string
-          match_score: number | null
-          predicted_root_cause: string | null
-          raw_log: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          details?: Json | null
-          error_type?: string | null
-          expected_root_cause: string
-          file_name?: string | null
-          id?: string
-          match_score?: number | null
-          predicted_root_cause?: string | null
-          raw_log: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          details?: Json | null
-          error_type?: string | null
-          expected_root_cause?: string
-          file_name?: string | null
-          id?: string
-          match_score?: number | null
-          predicted_root_cause?: string | null
-          raw_log?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       incident_feedback: {
         Row: {
           comment: string | null
