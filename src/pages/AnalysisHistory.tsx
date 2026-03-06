@@ -188,6 +188,19 @@ function extractPreventiveRec(suggestedFix: string | null): string {
   return "Implement monitoring and alerting for this error pattern to catch similar issues earlier.";
 }
 
+function formatSuggestedFix(raw: string | null): string | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed.map((s: string, i: number) => `${i + 1}. ${s}`).join("\n");
+    }
+  } catch {
+    // Not JSON, strip brackets if present
+  }
+  return raw.replace(/^\["|"\]$/g, "").replace(/",\s*"/g, "\n");
+}
+
 function InfoBlock({ label, content }: { label: string; content: string | null }) {
   if (!content) return null;
   return (
