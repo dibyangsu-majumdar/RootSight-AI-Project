@@ -15,7 +15,7 @@ const FEATURES = [
   {
     icon: Brain,
     title: "Structured AI Reasoning",
-    description: "The LLM is prompted to return strict JSON with root cause, confidence scores, fix steps, and impact analysis. Output is validated and auto-retried if malformed. No free-text guessing — only structured, actionable intelligence.",
+    description: "The LLM is prompted to return strict JSON with root cause, fix steps, and impact analysis. Output is validated and auto-retried if malformed. No free-text guessing — only structured, actionable intelligence.",
   },
   {
     icon: Shield,
