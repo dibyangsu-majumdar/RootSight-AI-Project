@@ -6,8 +6,8 @@ export interface SimilarIncident {
   error_type: string | null;
   service_name: string | null;
   root_cause_summary: string | null;
+  ai_summary: string | null;
   resolution_notes: string | null;
-  confidence_score: number;
   status: string;
   similarityScore: number;
 }
