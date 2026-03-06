@@ -165,7 +165,7 @@ export default function AnalysisHistory() {
                   )}
                   <div className="grid gap-3 md:grid-cols-2">
                     <InfoBlock label="🔍 Root Cause Explanation" content={analysis.root_cause_summary} />
-                    <InfoBlock label="🔧 Suggested Fix" content={analysis.suggested_fix} />
+                    <InfoBlock label="🔧 Suggested Fix" content={formatSuggestedFix(analysis.suggested_fix)} />
                     <InfoBlock label="🛡️ Preventive Recommendation" content={extractPreventiveRec(analysis.suggested_fix)} />
                     <InfoBlock label="📊 Business Impact" content={analysis.business_impact} />
                   </div>
@@ -186,6 +186,19 @@ function extractPreventiveRec(suggestedFix: string | null): string {
     return sentences[sentences.length - 1].trim() || sentences[sentences.length - 2].trim();
   }
   return "Implement monitoring and alerting for this error pattern to catch similar issues earlier.";
+}
+
+function formatSuggestedFix(raw: string | null): string | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed.map((s: string, i: number) => `${i + 1}. ${s}`).join("\n");
+    }
+  } catch {
+    // Not JSON, strip brackets if present
+  }
+  return raw.replace(/^\["|"\]$/g, "").replace(/",\s*"/g, "\n");
 }
 
 function InfoBlock({ label, content }: { label: string; content: string | null }) {
